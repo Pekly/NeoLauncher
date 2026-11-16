@@ -271,18 +271,11 @@ func (a *App) StartClient(id string) (AppState, error) {
 		return AppState{}, errors.New("install this instance first")
 	}
 	state := a.store.GetState()
-	if state.SelectedAccountID == "" {
-		return AppState{}, errors.New("sign in with a Microsoft account first")
-	}
-	session, err := a.accounts.Session(a.life, state.SelectedAccountID)
+	spec, err := a.clientLaunchSpec(profile, state)
 	if err != nil {
 		return AppState{}, err
 	}
-	spec, err := a.minecraft.ClientLaunch(profile.Directory, state.Settings.JavaPath, state.Settings.ClientMemoryMB, minecraft.Identity{Name: session.Name, UUID: session.UUID, AccessToken: session.AccessToken, XUID: session.XUID})
-	if err != nil {
-		return AppState{}, err
-	}
-	if err = a.runner.Start("client", id, runner.Spec{Program: spec.Program, Args: spec.Args, Directory: spec.Directory, Secrets: append(spec.Secrets, session.AccessToken)}, state.Settings.ClientMemoryMB); err != nil {
+	if err = a.runner.Start("client", id, runner.Spec{Program: spec.Program, Args: spec.Args, Directory: spec.Directory, Secrets: spec.Secrets}, state.Settings.ClientMemoryMB); err != nil {
 		return AppState{}, err
 	}
 	_ = a.store.SelectInstance(id)

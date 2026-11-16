@@ -238,6 +238,13 @@ button, h2, p, label, code { overflow-wrap: anywhere; }
 .account-row > strong { min-width: 0; flex: 1; }
 .account-row.selected { border-color: #426ba2; background: #17263b; }
 .account-row .configured { margin: 0; }
+.account-row > svg { color: #98b6df; }
+.account-kind.local { color: #b3d8ca; background: #20352f; border-color: #34544b; }
+.local-account-help { display: grid; justify-items: start; gap: 12px; margin-top: 12px; }
+.local-account-help p { max-width: 760px; font-size: 11px; }
+.auth-help { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 16px; }
+#operations-title { display: flex; align-items: center; gap: 8px; }
+#operations-title svg { width: 16px; height: 16px; color: #98b6df; }
 .server-list { margin-top: 12px; }
 .server-card .inline-actions .button { width: auto; }
 .server-card > p { margin: 12px 0; font-size: 12px; }

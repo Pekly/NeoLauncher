@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Pekly/NeoLauncher/internal/download"
+	"github.com/Pekly/NeoLauncher/internal/player"
 )
 
 func regularPath(root, relative string) (string, error) {
@@ -91,6 +92,20 @@ func memoryArgs(memoryMB int) ([]string, error) {
 	return []string{fmt.Sprintf("-Xms%dM", initial), fmt.Sprintf("-Xmx%dM", memoryMB)}, nil
 }
 func (s *Service) ClientLaunch(directory, javaPath string, memoryMB int, identity Identity) (LaunchSpec, error) {
+	return s.clientLaunch(directory, javaPath, memoryMB, identity, false)
+}
+
+// LocalClientLaunch uses an explicitly chosen local name, never a saved token.
+// Already-installed game files and Java are required; this makes no auth requests.
+func (s *Service) LocalClientLaunch(directory, javaPath string, memoryMB int, name string) (LaunchSpec, error) {
+	uuid, err := player.LocalUUID(name)
+	if err != nil {
+		return LaunchSpec{}, err
+	}
+	return s.clientLaunch(directory, javaPath, memoryMB, Identity{Name: name, UUID: uuid, AccessToken: "0"}, true)
+}
+
+func (s *Service) clientLaunch(directory, javaPath string, memoryMB int, identity Identity, local bool) (LaunchSpec, error) {
 	var zero LaunchSpec
 	mem, err := memoryArgs(memoryMB)
 	if err != nil {
@@ -146,6 +161,10 @@ func (s *Service) ClientLaunch(directory, javaPath string, memoryMB int, identit
 		"auth_session": "token:" + identity.AccessToken + ":" + identity.UUID, "user_type": "msa", "user_properties": "{}",
 		"version_name": rt.Installation.Version, "version_type": rt.Metadata.Type, "game_directory": dir, "assets_root": assets, "assets_index_name": assetIndexName(rt.Metadata),
 		"natives_directory": native, "library_directory": libs, "classpath": cp, "classpath_separator": string(os.PathListSeparator), "launcher_name": "NeoLauncher", "launcher_version": "0.2.0",
+	}
+	if local {
+		values["user_type"] = "legacy"
+		values["auth_session"] = "0"
 	}
 	jvm, err := s.arguments(rt.Metadata.Arguments.JVM)
 	if err != nil {
@@ -211,6 +230,9 @@ func (s *Service) ClientLaunch(directory, javaPath string, memoryMB int, identit
 	secrets := []string{identity.AccessToken}
 	if identity.XUID != "" {
 		secrets = append(secrets, identity.XUID)
+	}
+	if local {
+		secrets = nil
 	}
 	return LaunchSpec{Program: program, Args: args, Directory: dir, Secrets: secrets}, nil
 }

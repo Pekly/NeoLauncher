@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -57,7 +58,7 @@ func (s *Service) request(ctx context.Context, method, endpoint, contentType, be
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return "", errNetwork
+		return "", fmt.Errorf("%s sign-in could not connect; check your connection and try a fresh code: %w", s.providerName(endpoint), errNetwork)
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize+1))
@@ -66,10 +67,16 @@ func (s *Service) request(ctx context.Context, method, endpoint, contentType, be
 	}
 	defer clear(raw)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return "", fmt.Errorf("%s sign-in is rate limited; wait a minute before requesting a fresh code", s.providerName(endpoint))
+		}
+		if resp.StatusCode >= 500 {
+			return "", fmt.Errorf("%s sign-in is temporarily unavailable; try again later with a fresh code", s.providerName(endpoint))
+		}
 		var v vendorError
 		_ = json.Unmarshal(raw, &v)
 		switch v.Code {
-		case "authorization_pending", "slow_down", "expired_token", "authorization_declined", "access_denied", "invalid_grant", "invalid_client", "unauthorized_client", "invalid_scope":
+		case "authorization_pending", "slow_down", "expired_token", "authorization_declined", "access_denied", "invalid_grant", "invalid_client", "unauthorized_client", "invalid_scope", "server_error", "temporarily_unavailable":
 			return v.Code, nil
 		}
 		switch v.XErr {
@@ -82,12 +89,26 @@ func (s *Service) request(ctx context.Context, method, endpoint, contentType, be
 		case 2148916238:
 			return "", errors.New("Xbox family approval required")
 		}
-		return "", errors.New("authentication provider rejected request")
+		return "", fmt.Errorf("%s rejected sign-in (HTTP %d); retry with a fresh code and check the account/app permissions", s.providerName(endpoint), resp.StatusCode)
 	}
 	if json.Unmarshal(raw, out) != nil {
 		return "", errResponse
 	}
 	return "", nil
+}
+
+// Labels come from our endpoint configuration, never vendor text or request URLs.
+func (s *Service) providerName(endpoint string) string {
+	switch endpoint {
+	case s.endpoints.device, s.endpoints.token:
+		return "Microsoft"
+	case s.endpoints.xbox, s.endpoints.xsts:
+		return "Xbox"
+	case s.endpoints.minecraft, s.endpoints.entitlements, s.endpoints.profile:
+		return "Minecraft"
+	default:
+		return "Account provider"
+	}
 }
 func (s *Service) form(ctx context.Context, endpoint string, form url.Values, out any) (string, error) {
 	body := []byte(form.Encode())
@@ -116,9 +137,11 @@ func oauthError(code string) error {
 	case "access_denied", "authorization_declined":
 		return errors.New("Microsoft authorization denied")
 	case "invalid_client", "unauthorized_client":
-		return errors.New("Microsoft application is not configured for device sign-in")
+		return errors.New("Microsoft application is not configured for personal-account device sign-in; the app owner must enable public client flows")
 	case "invalid_scope":
 		return errors.New("Microsoft application permissions are not configured")
+	case "server_error", "temporarily_unavailable":
+		return errors.New("Microsoft sign-in is temporarily unavailable; try again later with a fresh code")
 	default:
 		return errors.New("Microsoft authorization failed")
 	}

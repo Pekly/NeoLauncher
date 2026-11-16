@@ -52,14 +52,17 @@ type InstanceProfile struct {
 	Pack          *PackSource `json:"pack,omitempty"`
 }
 type State struct {
-	SchemaVersion      int               `json:"schema_version"`
-	DataDir            string            `json:"data_dir"`
-	Settings           Settings          `json:"settings"`
-	Servers            []ServerProfile   `json:"servers"`
-	Instances          []InstanceProfile `json:"instances"`
-	NextServerPort     int               `json:"next_server_port"`
-	SelectedAccountID  string            `json:"selected_account_id"`
-	SelectedInstanceID string            `json:"selected_instance_id"`
+	SchemaVersion          int               `json:"schema_version"`
+	DataDir                string            `json:"data_dir"`
+	Settings               Settings          `json:"settings"`
+	Servers                []ServerProfile   `json:"servers"`
+	Instances              []InstanceProfile `json:"instances"`
+	NextServerPort         int               `json:"next_server_port"`
+	SelectedAccountID      string            `json:"selected_account_id"`
+	SelectedInstanceID     string            `json:"selected_instance_id"`
+	LocalAccounts          []LocalAccount    `json:"local_accounts"`
+	SelectedAccountKind    string            `json:"selected_account_kind"`
+	SelectedLocalAccountID string            `json:"selected_local_account_id"`
 }
 type CreateServerRequest struct {
 	Name     string      `json:"name"`
@@ -111,6 +114,10 @@ func copyPack(p *PackSource) *PackSource {
 	return &copy
 }
 func clone(state State) State {
+	state.LocalAccounts = append([]LocalAccount{}, state.LocalAccounts...)
+	if state.SelectedAccountKind == "" {
+		state.SelectedAccountKind = "microsoft"
+	}
 	state.Servers = append([]ServerProfile{}, state.Servers...)
 	state.Instances = append([]InstanceProfile{}, state.Instances...)
 	for i := range state.Servers {
@@ -157,6 +164,9 @@ func Open(root string) (*Store, error) {
 		return nil, errors.New("unsupported settings version")
 	}
 	if err = validateSettings(s.state.Settings); err != nil {
+		return nil, err
+	}
+	if err = validateLocalAccounts(&s.state); err != nil {
 		return nil, err
 	}
 	if len(s.state.Servers)+len(s.state.Instances) > 1000 {
@@ -491,6 +501,9 @@ func (s *Store) SelectAccount(id string) error {
 	defer s.mu.Unlock()
 	next := clone(s.state)
 	next.SelectedAccountID = id
+	if id != "" {
+		next.SelectedAccountKind = "microsoft"
+	}
 	if err := s.save(next); err != nil {
 		return err
 	}

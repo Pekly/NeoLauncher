@@ -83,11 +83,19 @@ test('Chromium: preview, responsive layout, keyboard, reduced motion and native 
   assert.equal(await evaluate(`${el('browser-banner')}.hidden`), true, 'browser adapter never starts automatically');
   await click('enter-preview');
   await until(`!${el('browser-banner')}.hidden`);
-  for (const id of ['sign-in', 'add-instance', 'add-server', 'save-settings', 'open-data', 'search-content']) {
+  for (const id of ['sign-in', 'add-local-account', 'add-instance', 'add-server', 'save-settings', 'open-data', 'search-content']) {
     assert.equal(await evaluate(`${el(id)}.disabled`), true, `${id} requires native bindings`);
   }
   await click('add-server');
   assert.equal(await evaluate(`${el('action-dialog')}.open`), false, 'read-only preview cannot create profiles');
+  await click('add-local-account');
+  assert.equal(await evaluate(`${el('action-dialog')}.open`), false, 'read-only preview cannot create local players');
+  for (const id of ['sign-in', 'add-local-account', 'search-content', 'save-settings', 'open-data']) {
+    assert.equal(await evaluate(`${el(id)}.querySelector('svg').getAttribute('aria-hidden')`), 'true');
+    assert.ok(await evaluate(`${el(id)}.textContent.trim().length > 0`), 'icons retain visible button names');
+  }
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('use')).every(u=>u.getAttribute('href').startsWith('#') && !!document.querySelector(u.getAttribute('href')))`), true, 'all icons resolve to local sprite symbols');
+  assert.equal(await evaluate(`document.querySelectorAll('img, image').length`), 0, 'no raster or remote icon images');
 
   await t.test('responsive Play/Servers/Content/Settings grids at 1280, 900, 680, 390 and 320px', async () => {
     for (const value of [1280, 900, 680, 390, 320]) {
@@ -154,6 +162,7 @@ test('Chromium: preview, responsive layout, keyboard, reduced motion and native 
     assert.equal(await evaluate(`${el('client-memory')}.value`), '6144');
     await click('save-settings');
     await until(`${el('notice')}.textContent === 'Settings saved on this device.'`);
+    assert.equal(await evaluate(`${el('save-settings')}.querySelectorAll('svg').length`), 1, 'settings icon survives busy label changes');
     await input('client-memory', '8192');
     await click('browse-java');
     await until(`${el('java-path')}.value === 'C:/Java/bin/java.exe' && !${el('open-data')}.disabled`);

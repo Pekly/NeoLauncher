@@ -8,6 +8,15 @@
   const memoryValid = v => integerInRange(v, 512, 32768);
   const portValid = v => integerInRange(v, 1024, 65535);
   const loaderValid = v => ['vanilla', 'fabric'].includes(v);
+  const localNameValid = name => typeof name === 'string' && name.length >= 1 && name.length <= 16 && !/[^A-Za-z0-9_]/.test(name);
+  const accountKind = state => state.selected_account_kind || 'microsoft';
+  function selectedPlayer(state) {
+    if (accountKind(state) === 'local') return state.local_accounts?.find(a => a.id && a.id === state.selected_local_account_id && localNameValid(a.name) && a.uuid) || null;
+    if (accountKind(state) === 'microsoft') return state.accounts.find(a => a.id && a.id === state.selected_account_id) || null;
+    return null; // Unknown kinds and stale selections never fall back to another account.
+  }
+  const iconNames = new Set(['account', 'local', 'play', 'stop', 'folder', 'logs', 'search', 'settings', 'download', 'plus', 'remove']);
+  const icon = name => iconNames.has(name) ? `<svg aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>` : '';
   function validateProfile(input, kind = 'client', requireVersion = true) {
     const name = text(input.name).trim(), version = text(input.version).trim(), loader = input.loader || 'vanilla';
     const errors = {};
@@ -33,6 +42,7 @@
     // Whitelist fields: the frontend must never keep native tokens or API keys.
     return { schema_version: 1, data_dir: v.data_dir, settings: { java_path: v.settings.java_path, client_memory_mb: Number(v.settings.client_memory_mb), curseforge_enabled: v.curseforge_configured === true && v.settings.curseforge_enabled === true },
       curseforge_configured: v.curseforge_configured === true, instances: profiles('instances'), servers: profiles('servers'), accounts: list('accounts').map(a => ({ id: text(a.id), name: text(a.name), uuid: text(a.uuid) })), selected_account_id: text(v.selected_account_id), selected_instance_id: text(v.selected_instance_id), accounts_error: text(v.accounts_error), next_server_port: portValid(v.next_server_port) ? Number(v.next_server_port) : 25565,
+      local_accounts: list('local_accounts').map(a => ({ id: text(a.id), name: text(a.name), uuid: text(a.uuid) })), selected_account_kind: text(v.selected_account_kind) || 'microsoft', selected_local_account_id: text(v.selected_local_account_id),
       operations: list('operations').map(o => ({ id: text(o.id), target_id: text(o.target_id), kind: text(o.kind), label: text(o.label), state: text(o.state), progress: o.progress || {}, error: text(o.error) })), processes: list('processes').map(p => ({ id: text(p.id), kind: text(p.kind), status: text(p.status), exit_code: p.exit_code })) };
   }
   const processFor = (state, kind, id) => state.processes.find(p => p.id === id && p.kind === kind);
@@ -56,12 +66,13 @@
     return new Promise((resolve, reject) => { function check() { if (typeof host.go?.app?.App?.GetState === 'function') return resolve(host.go.app.App); if (Date.now() - start >= timeout) return reject(new Error('The desktop connection is unavailable. Retry once the app has started.')); setTimeout(check, interval); } check(); });
   }
   function createPreviewAdapter() {
-    const empty = { schema_version: 1, data_dir: '', settings: { java_path: '', client_memory_mb: 4096, curseforge_enabled: false }, servers: [], instances: [], accounts: [], operations: [], processes: [], next_server_port: 25565 };
+    const empty = { schema_version: 1, data_dir: '', settings: { java_path: '', client_memory_mb: 4096, curseforge_enabled: false }, servers: [], instances: [], accounts: [], local_accounts: [], selected_account_kind: 'microsoft', selected_local_account_id: '', operations: [], processes: [], next_server_port: 25565 };
     const adapter = { GetState: async () => structuredClone(empty) };
     for (const method of ['SaveSettings', 'ChooseJava', 'OpenDataFolder', 'OpenServerFolder', 'OpenInstanceFolder', 'GetMinecraftVersions', 'CreateServer', 'CreateInstance', 'SetProfileVersion', 'InstallProfile', 'StartServer', 'StopServer', 'SendServerCommand', 'StartClient', 'StopClient', 'GetLogs', 'CancelOperation', 'BeginMicrosoftLogin', 'PollMicrosoftLogin', 'CancelMicrosoftLogin', 'SelectAccount', 'RemoveAccount', 'SetCurseForgeKey', 'OpenExternal', 'SearchContent', 'GetContentVersions', 'InstallContent']) adapter[method] = async () => { throw new Error('Only available in the desktop app. Browser preview writes no files.'); };
+    for (const method of ['CreateLocalAccount', 'SelectLocalAccount', 'RemoveLocalAccount']) adapter[method] = async () => { throw new Error('Only available in the desktop app. Browser preview writes no files.'); };
     return adapter;
   }
-  const helpers = { LIMITS, escapeHTML, integerInRange, validateProfile, validateServer, validateSettings, normalizeState, profileBusy, providerAllowed, pollDelay, officialVerificationURL, progressText, hasNativeEnvironment, waitForBindings, createPreviewAdapter };
+  const helpers = { LIMITS, escapeHTML, integerInRange, validateProfile, validateServer, validateSettings, normalizeState, localNameValid, accountKind, selectedPlayer, icon, profileBusy, providerAllowed, pollDelay, officialVerificationURL, progressText, hasNativeEnvironment, waitForBindings, createPreviewAdapter };
   if (typeof module !== 'undefined' && module.exports) module.exports = helpers;
   if (!root.document) return;
 
@@ -83,7 +94,8 @@
       if (key) Array.from(node.querySelectorAll('[data-focus]')).find(e => e.dataset.focus === key)?.focus({ preventScroll: true });
     }
     function nativeButton(label, action, id, kind, disabled = false, primary = false) {
-      return `<button class="button${primary ? ' primary' : ''}" data-action="${action}" data-id="${esc(id)}" data-kind="${kind}" data-focus="${esc(action + ':' + kind + ':' + id)}"${!ready() || busy || disabled ? ' disabled' : ''}>${label}</button>`;
+      const glyph = { start: 'play', stop: 'stop', install: 'download', logs: 'logs', folder: 'folder', version: 'settings', 'select-account': 'account', 'select-local-account': 'local', 'remove-account': 'remove', 'remove-local-account': 'remove', 'cancel-operation': 'stop' }[action];
+      return `<button class="button${primary ? ' primary' : ''}" data-action="${action}" data-id="${esc(id)}" data-kind="${kind}" data-focus="${esc(action + ':' + kind + ':' + id)}"${!ready() || busy || disabled ? ' disabled' : ''}>${icon(glyph)}${label}</button>`;
     }
     function syncControls() {
       document.querySelectorAll('[data-native]').forEach(el => { el.disabled = !ready() || busy; el.title = preview ? 'Only available in the desktop app' : ''; });
@@ -93,7 +105,7 @@
       $('cf-option').disabled = !state || !providerAllowed(state, 'curseforge');
       if ($('cf-option').disabled && $('provider').value === 'curseforge') $('provider').value = 'modrinth';
       $('sign-in').disabled = !ready() || busy || !!authFlow;
-      $('save-settings').textContent = busy && document.activeElement?.id === 'save-settings' ? 'Saving…' : 'Save settings';
+      $('save-settings-label').textContent = busy && document.activeElement?.id === 'save-settings' ? 'Saving…' : 'Save settings';
       if (dialog.open) {
         dialog.setAttribute('aria-busy', String(busy || modalLoading));
         dialog.querySelectorAll('[data-submit]').forEach(el => { el.dataset.label ||= el.textContent; el.textContent = busy ? 'Working…' : el.dataset.label; el.disabled = busy || modalLoading || !ready() || (modalGuard && !modalGuard()); });
@@ -111,14 +123,18 @@
         actions += nativeButton(p.version ? 'Change version' : 'Choose version', 'version', p.id, kind, blocked);
         actions += nativeButton('Install', 'install', p.id, kind, blocked || !p.version || !supported, true);
       } else if (active) actions += nativeButton('Stop', 'stop', p.id, kind, process.status !== 'running');
-      else actions += nativeButton(kind === 'server' ? 'Start server' : 'Play', 'start', p.id, kind, blocked || !supported || (kind === 'client' && !state.accounts.some(a => a.id === state.selected_account_id)), true);
+      else actions += nativeButton(kind === 'server' ? 'Start server' : 'Play', 'start', p.id, kind, blocked || !supported || (kind === 'client' && !selectedPlayer(state)), true);
       actions += nativeButton('Logs', 'logs', p.id, kind) + nativeButton('Open folder', 'folder', p.id, kind);
-      return `<article class="server-card" style="--stagger:${Math.min(index, 5) * 35}ms"><div class="server-card-header"><div class="card-name"><h2>${esc(p.name)}</h2><span class="status ${active ? 'running' : ''}">${esc(status)}</span></div><span class="configured">${esc(p.loader.toUpperCase())}</span></div><dl><div><dt>Minecraft</dt><dd>${esc(p.version || 'Choose a version')}${p.loader_version ? ' · Loader ' + esc(p.loader_version) : ''}</dd></div>${kind === 'server' ? `<div><dt>Port</dt><dd>${esc(p.port)}</dd></div><div><dt>Memory</dt><dd>${esc(p.memory_mb)} MiB</dd></div>` : ''}</dl>${!supported ? '<p class="error">Unsupported loader. Only Vanilla and Fabric can run.</p>' : ''}${kind === 'client' && p.installed && !state.selected_account_id ? '<p>Sign in and select a Microsoft account to play.</p>' : ''}${process?.status === 'stopped' && process.exit_code != null ? `<p>Last exit code: ${esc(process.exit_code)}. Check logs for details.</p>` : ''}<div class="inline-actions">${actions}</div></article>`;
+      return `<article class="server-card" style="--stagger:${Math.min(index, 5) * 35}ms"><div class="server-card-header"><div class="card-name"><h2>${esc(p.name)}</h2><span class="status ${active ? 'running' : ''}">${esc(status)}</span></div><span class="configured">${esc(p.loader.toUpperCase())}</span></div><dl><div><dt>Minecraft</dt><dd>${esc(p.version || 'Choose a version')}${p.loader_version ? ' · Loader ' + esc(p.loader_version) : ''}</dd></div>${kind === 'server' ? `<div><dt>Port</dt><dd>${esc(p.port)}</dd></div><div><dt>Memory</dt><dd>${esc(p.memory_mb)} MiB</dd></div>` : ''}</dl>${!supported ? '<p class="error">Unsupported loader. Only Vanilla and Fabric can run.</p>' : ''}${kind === 'client' && p.installed ? `<p>${selectedPlayer(state) ? `Play as ${esc(selectedPlayer(state).name)} · ${accountKind(state) === 'local' ? 'Local player (offline)' : 'Microsoft'}` : 'Select a Microsoft account or create and select a local player to play.'}</p>` : ''}${process?.status === 'stopped' && process.exit_code != null ? `<p>Last exit code: ${esc(process.exit_code)}. Check logs for details.</p>` : ''}<div class="inline-actions">${actions}</div></article>`;
     }
     function renderLists() {
       if (!state) return;
       for (const [kind, key, id] of [['client', 'instances', 'instance-list'], ['server', 'servers', 'server-list']]) patch(id, state[key].length ? state[key].map((p, i) => profileCard(p, kind, i)).join('') : `<div class="empty-state"><h2>${kind === 'client' ? 'Your next world starts here.' : 'No servers yet.'}</h2><p>${kind === 'client' ? 'New profile → Install → Play. Vanilla or Fabric, in a folder of its own.' : 'Create a server profile or install a server modpack.'}</p></div>`);
-      patch('account-list', (state.accounts_error ? `<div class="notice error">${esc(state.accounts_error)}</div>` : '') + (state.accounts.length ? state.accounts.map(a => `<div class="account-row${a.id === state.selected_account_id ? ' selected' : ''}"><strong>${esc(a.name)}</strong>${a.id === state.selected_account_id ? '<span class="configured">Selected</span>' : ''}<div class="inline-actions">${nativeButton('Select', 'select-account', a.id, 'account', a.id === state.selected_account_id)}${nativeButton('Sign out', 'remove-account', a.id, 'account')}</div></div>`).join('') : '<div class="account-row"><p>No account connected. Microsoft sign-in is required to play; there is no offline mode.</p></div>'));
+      const accountRows = (accounts, kind) => accounts.map(a => {
+        const local = kind === 'local', selected = accountKind(state) === kind && a.id === (local ? state.selected_local_account_id : state.selected_account_id);
+        return `<div class="account-row${selected ? ' selected' : ''}">${icon(local ? 'local' : 'account')}<strong>${esc(a.name)}</strong><span class="configured account-kind${local ? ' local' : ''}">${local ? 'Local · Offline' : 'Microsoft'}</span>${selected ? '<span class="configured">Selected</span>' : ''}<div class="inline-actions">${nativeButton('Select', local ? 'select-local-account' : 'select-account', a.id, kind, selected)}${nativeButton(local ? 'Delete player' : 'Sign out', local ? 'remove-local-account' : 'remove-account', a.id, kind)}</div></div>`;
+      }).join('');
+      patch('account-list', (state.accounts_error ? `<div class="notice error">${esc(state.accounts_error)}</div>` : '') + (accountRows(state.accounts, 'microsoft') + accountRows(state.local_accounts, 'local') || '<div class="account-row"><p>No players yet. Sign in with Microsoft or create a local player below.</p></div>'));
       $('operations-panel').hidden = !state.operations.length;
       patch('operation-list', state.operations.map(o => `<article class="operation"><div><strong>${esc(o.label || o.kind)}</strong><p>${esc(o.state)} · ${esc(progressText(o.progress))}</p>${o.state === 'running' && Number(o.progress.total) > 0 ? `<progress aria-label="${esc(o.label)} progress" max="${Number(o.progress.total)}" value="${Math.max(0, Number(o.progress.done) || 0)}"></progress>` : ''}${o.error ? `<p class="error">${esc(o.error)}</p>` : ''}${['failed', 'cancelled'].includes(o.state) ? '<p>Review the error, then retry from the profile or content page.</p>' : ''}</div>${o.state === 'running' ? nativeButton('Cancel', 'cancel-operation', o.id, 'operation') : ''}</article>`).join(''));
     }
@@ -229,6 +245,18 @@
       void loadVersions();
     }
     $('add-instance').onclick = () => profileModal('client'); $('add-server').onclick = () => profileModal('server');
+    $('add-local-account').onclick = () => {
+      if (!ready() || busy || dialog.open) return;
+      openModal('Create local player', `<p class="dialog-description">A local account uses a username, not Microsoft sign-in. Play offline using already installed game files. Downloads still need internet. Authenticated multiplayer and skins are unavailable; server online-mode stays enabled.</p><form id="local-account-form">${field('local-account-name', 'Player username', 'required minlength="1" maxlength="16" pattern="[A-Za-z0-9_]{1,16}" autocomplete="off" spellcheck="false" aria-describedby="local-name-help" placeholder="e.g. SkyBuilder"')}<p id="local-name-help" class="field-help">1–16 ASCII letters, digits or underscores. This is a player identity, not a game profile.</p>${submit('Create local player')}</form>`);
+      modalGuard = () => localNameValid($('local-account-name')?.value);
+      $('local-account-name').oninput = syncControls; $('local-account-name').onchange = syncControls;
+      $('local-account-form').onsubmit = async e => {
+        e.preventDefault(); const name = $('local-account-name').value;
+        if (!localNameValid(name)) { fail(new Error('Use 1–16 ASCII letters, digits or underscores.')); return; }
+        if (await action(() => stateAction('CreateLocalAccount', name), { success: 'Local player created and selected. Use an installed game profile to play.' })) closeModal(true);
+      };
+      syncControls();
+    };
     function confirmation(title, body, label, task, guard = null) {
       openModal(title, `<form id="confirm-form">${body}${submit(label)}</form>`);
       modalGuard = guard; syncControls();
@@ -239,15 +267,16 @@
       if (kind === 'server') {
         confirmation('Start ' + p.name, '<p>Running this server requires agreement to the Minecraft EULA.</p><p><a href="https://www.minecraft.net/eula" data-external>Read the official Minecraft EULA ↗</a></p><label class="check"><input id="accept-eula" type="checkbox">I have read and agree to the Minecraft EULA.</label>', 'Accept EULA & start server', async () => { guardProfile(kind, id, true); if (!$('accept-eula').checked) throw new Error('Please review and accept the EULA.'); await stateAction('StartServer', id, true); }, () => $('accept-eula')?.checked && !profileBusy(state, kind, id));
         $('accept-eula').onchange = syncControls;
-      } else void action(async () => { guardProfile(kind, id, true); if (!state.selected_account_id) throw new Error('Sign in and select your Microsoft account first.'); await stateAction('StartClient', id); });
+      } else void action(async () => { guardProfile(kind, id, true); if (!selectedPlayer(state)) throw new Error('Select a Microsoft account or a valid local player first.'); await stateAction('StartClient', id); });
     }
     function stopProfile(kind, id) {
       if (kind === 'server') void action(() => stateAction('StopServer', id));
       else confirmation('Stop Minecraft?', '<p>Force-stopping the client can lose unsaved progress. Save and quit in Minecraft whenever possible.</p>', 'Stop client · may lose progress', () => stateAction('StopClient', id));
     }
+    const authHelp = '<p class="field-help auth-help">Microsoft website says there is a temporary service problem, even after approval? Close this dialog and sign in again for a fresh code. Use a personal Microsoft account, try a private browser window, or try later. This launcher cannot resolve Microsoft website outages.</p>';
     async function beginLogin() {
       if (!ready() || busy || dialog.open) return;
-      openModal('Sign in with Microsoft', '<p role="status">Requesting a secure device code…</p>', 'auth');
+      openModal('Sign in with Microsoft', '<p role="status">Requesting a secure device code…</p>' + authHelp, 'auth');
       const generation = modalGeneration;
       try {
         const flow = await backend.BeginMicrosoftLogin();
@@ -255,10 +284,10 @@
         const url = officialVerificationURL(flow.verification_uri);
         if (!url || !flow.flow_id || !flow.user_code) { if (flow.flow_id) await backend.CancelMicrosoftLogin(flow.flow_id); throw new Error('Invalid device sign-in response.'); }
         authFlow = { flow_id: flow.flow_id, interval: pollDelay(flow.poll_interval_sec), expires: Date.parse(flow.expires_at) };
-        $('dialog-body').innerHTML = `<p>Open the official Microsoft page and enter this code. Never share it.</p><code class="device-code">${esc(flow.user_code)}</code><p><a href="${esc(url)}" data-external>${esc(url)} ↗</a></p><p id="auth-status" class="field-help" role="status">Waiting for Microsoft approval…</p><p class="field-help">Close this dialog to cancel. No passwords or tokens are collected here.</p>`;
+        $('dialog-body').innerHTML = `<p>Open the official Microsoft page and enter this code. Never share it.</p><code class="device-code">${esc(flow.user_code)}</code><p><a href="${esc(url)}" data-external>${esc(url)} ↗</a></p><p id="auth-status" class="field-help" role="status">Waiting for Microsoft approval…</p><p class="field-help">Close this dialog to cancel. No passwords or tokens are collected here.</p>${authHelp}`;
         $('dialog-body').querySelector('a').focus();
         scheduleAuth(generation); syncControls();
-      } catch { if (generation === modalGeneration) { fail(new Error('Could not begin Microsoft sign-in. Close this dialog and try again.')); } }
+      } catch (e) { if (generation === modalGeneration) { $('dialog-body').innerHTML = '<p>Sign-in did not start. Close this dialog to retry when ready.</p>' + authHelp; fail(e); } } // Native sign-in errors are sanitized by the backend.
     }
     function scheduleAuth(generation) { clearTimeout(authTimer); if (authFlow && generation === modalGeneration) authTimer = setTimeout(() => pollAuth(generation), authFlow.interval); }
     async function pollAuth(generation) {
@@ -272,7 +301,7 @@
         if (!['pending', 'slow_down'].includes(result.status)) throw new Error('Unknown authentication status');
         flow.interval = result.poll_interval_sec ? pollDelay(result.poll_interval_sec) : result.status === 'slow_down' ? flow.interval + 5000 : flow.interval;
         message('auth-status', result.status === 'slow_down' ? 'Microsoft asked us to wait a little longer…' : 'Waiting for Microsoft approval…'); scheduleAuth(generation);
-      } catch { if (generation === modalGeneration) { await cancelAuth(); if (generation === modalGeneration) fail(new Error('Sign-in could not be completed. Close this dialog and try again.')); } }
+      } catch (e) { if (generation === modalGeneration) { await cancelAuth(); if (generation === modalGeneration) { message('auth-status', 'Sign-in stopped. Close this dialog to retry when ready.'); fail(e); } } }
     }
     $('sign-in').onclick = beginLogin;
     function openLogs(kind, id) {
@@ -301,6 +330,8 @@
       if (act === 'cancel-operation') void action(() => backend.CancelOperation(id));
       if (act === 'select-account') void action(() => stateAction('SelectAccount', id));
       if (act === 'remove-account') confirmation('Sign out on this device?', '<p>This removes the saved account from NeoLauncher. Your worlds are kept.</p>', 'Sign out', async () => { await cancelAuth(); await stateAction('RemoveAccount', id); });
+      if (act === 'select-local-account') void action(() => stateAction('SelectLocalAccount', id));
+      if (act === 'remove-local-account') confirmation('Delete local player?', '<p>This removes the local player identity from NeoLauncher. Your worlds and installed game files stay intact. If this player is selected, select another player before launching; no account is selected automatically.</p>', 'Delete local player', () => stateAction('RemoveLocalAccount', id));
       if (act === 'content-install') contentModal(searchResults[Number(id)]);
     });
     $('settings-form').onsubmit = async e => {
@@ -328,7 +359,7 @@
         const results = await backend.SearchContent(filter); searchFilter = filter;
         searchResults = (results || []).filter(r => r.provider === filter.provider && r.kind === filter.kind);
         $('search-status').textContent = searchResults.length ? `${searchResults.length} results · ${filter.provider} · ${filter.side}` : 'No results. Try a different query, version or loader.';
-        $('content-results').innerHTML = searchResults.map((r, i) => `<article class="server-card content-card" style="--stagger:${Math.min(i, 5) * 35}ms"><span class="eyebrow">${esc(r.provider)} / ${esc(r.kind)}</span><h2>${esc(r.name)}</h2><p>${esc(r.description)}</p><button class="button" data-action="content-install" data-id="${i}" data-kind="content">Choose version & install</button></article>`).join('');
+        $('content-results').innerHTML = searchResults.map((r, i) => `<article class="server-card content-card" style="--stagger:${Math.min(i, 5) * 35}ms"><span class="eyebrow">${esc(r.provider)} / ${esc(r.kind)}</span><h2>${esc(r.name)}</h2><p>${esc(r.description)}</p><button class="button" data-action="content-install" data-id="${i}" data-kind="content">${icon('download')}Choose version & install</button></article>`).join('');
       });
       if (!ok && ready()) $('search-status').textContent = 'Search failed. Review the message above, then Search to retry.';
     };
@@ -373,6 +404,9 @@
       targets();
     }
     const windowActions = { minimize: 'WindowMinimise', maximize: 'WindowToggleMaximise', 'close-window': 'Quit' };
+    const staticIcons = { 'sign-in': 'account', 'add-local-account': 'local', 'add-instance': 'plus', 'add-server': 'plus', 'search-content': 'search', 'browse-java': 'folder', 'save-settings': 'settings', 'open-data': 'folder' };
+    for (const [id, name] of Object.entries(staticIcons)) $(id).insertAdjacentHTML('afterbegin', icon(name));
+    $('operations-title').insertAdjacentHTML('afterbegin', icon('download'));
     function windowControls() { for (const [id, method] of Object.entries(windowActions)) { $(id).disabled = typeof root.runtime?.[method] !== 'function'; $(id).onclick = async () => { try { await root.runtime?.[method]?.(); } catch (e) { fail(e, 'global-error'); } }; } }
     windowControls();
     const runtimeTimer = setInterval(windowControls, 1000);

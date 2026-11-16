@@ -69,7 +69,7 @@ test('native startup waits and never silently becomes browser preview', async ()
 });
 test('honest explicit preview cannot authenticate, create files or emulate running/download state', async () => {
   const adapter = ui.createPreviewAdapter();
-  for (const key of ['instances', 'servers', 'accounts', 'operations', 'processes']) assert.deepEqual((await adapter.GetState())[key], []);
+  for (const key of ['instances', 'servers', 'accounts', 'local_accounts', 'operations', 'processes']) assert.deepEqual((await adapter.GetState())[key], []);
   for (const [method, fn] of Object.entries(adapter)) if (method !== 'GetState') await assert.rejects(fn(), /Only available in the desktop app/);
   assert.match(html, /Read-only UI preview/); assert.match(html, /id="sign-in"[^>]*disabled/);
 });
@@ -85,4 +85,33 @@ test('safe text, EULA, pack isolation, masked key and motion contracts', () => {
   assert.match(html, /id="floating-island"/); assert.match(html, /id="fall-clip"/);
   assert.match(css, /focus-visible/); assert.match(css, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(css, /transition:\s*all|overflow:\s*hidden/);
+});
+test('local usernames are strictly ASCII and 1–16 characters', () => {
+  for (const name of ['A', '_', 'Sky_Builder12345']) assert.equal(ui.localNameValid(name), true, name);
+  for (const name of ['', ' ', 'a'.repeat(17), 'hello world', ' name', 'name ', 'a-b', 'é', '玩家', '<img>', 'a\n', 'a\r', 'a\u2028', null, 123]) assert.equal(ui.localNameValid(name), false, String(name));
+});
+test('local state is whitelisted; selection is explicit with Microsoft backward compatibility and no fallback', async () => {
+  const base = await ui.createPreviewAdapter().GetState();
+  const ms = { id: 'same', name: 'Microsoft', uuid: 'ms-uuid' }, local = { id: 'same', name: 'Local_1', uuid: 'local-uuid' };
+  const state = ui.normalizeState({ ...base, accounts: [ms], local_accounts: [{ ...local, access_token: 'secret' }], selected_account_id: 'same', selected_local_account_id: 'same' });
+  assert.deepEqual(state.local_accounts, [local]);
+  assert.equal(ui.selectedPlayer(state).name, 'Microsoft');
+  for (const selected_account_kind of ['', undefined, 'microsoft']) assert.equal(ui.selectedPlayer({ ...state, selected_account_kind }).name, 'Microsoft');
+  assert.equal(ui.selectedPlayer({ ...state, selected_account_kind: 'local' }).name, 'Local_1');
+  for (const patch of [{ selected_account_kind: 'other' }, { selected_account_id: 'missing' }, { selected_account_kind: 'local', selected_local_account_id: '' }, { selected_account_kind: 'local', selected_local_account_id: 'missing' }, { selected_account_kind: 'local', local_accounts: [{ ...local, name: 'bad name' }] }, { selected_account_kind: 'local', local_accounts: [{ ...local, uuid: '' }] }]) assert.equal(ui.selectedPlayer({ ...state, ...patch }), null);
+  assert.deepEqual(ui.normalizeState({ ...base, local_accounts: null }).local_accounts, []);
+  assert.throws(() => ui.normalizeState({ ...base, local_accounts: {} }));
+  assert.doesNotMatch(JSON.stringify(state), /secret|access_token/);
+  for (const method of ['CreateLocalAccount', 'SelectLocalAccount', 'RemoveLocalAccount']) await assert.rejects(ui.createPreviewAdapter()[method]('Local_1'), /Only available in the desktop app/);
+});
+test('icons use only local symbol references and are decorative; offline and Microsoft help remain honest', () => {
+  for (const name of ['account', 'local', 'play', 'stop', 'folder', 'logs', 'search', 'settings', 'download', 'plus', 'remove']) {
+    assert.match(html, new RegExp(`<symbol id="i-${name}"`));
+    assert.equal(ui.icon(name), `<svg aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`);
+  }
+  for (const name of ['https://evil.test/icon.svg', '"><script>', '__proto__', undefined]) assert.equal(ui.icon(name), '');
+  assert.doesNotMatch(html, /<img\b|<image\b|<use[^>]+href="(?!#)/i);
+  assert.match(html, /already installed files/); assert.match(html, /No authenticated multiplayer or skins/);
+  for (const hint of ['fresh code', 'personal Microsoft account', 'private browser window', 'try later', 'even after approval']) assert.ok(js.includes(hint));
+  assert.match(js, /Your worlds and installed game files stay intact/);
 });
