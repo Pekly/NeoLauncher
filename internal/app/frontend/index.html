@@ -1,108 +1,67 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <title>NeoLauncher</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="app.js" defer></script>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark">
+  <title>NeoLauncher</title><link rel="stylesheet" href="styles.css"><script src="app.js" defer></script>
 </head>
 <body>
   <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
     <symbol id="i-brand" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10 M7.5 4.5l9 5v5"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="m9 5 11 7-11 7V5Z"/></symbol>
     <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01 M7 17.5h.01 M12 6.5h5 M12 17.5h5"/></symbol>
-    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h16 M4 12h16 M4 18h16"/><path d="M8 3v6 M16 9v6 M10 15v6"/></symbol>
-    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v2 M3 7h7l2 3h9l-2 10H3V7Z"/></symbol>
-    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14"/></symbol>
-    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14 M13 6l6 6-6 6"/></symbol>
-    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
-    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6 M12 7h.01"/></symbol>
+    <symbol id="i-content" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17.5h7 M17.5 14v7"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M10 15v6"/></symbol>
   </defs></svg>
-  <header class="titlebar">
-    <div class="brand"><svg aria-hidden="true"><use href="#i-brand"/></svg><strong>NeoLauncher</strong><span>JAVA EDITION</span></div>
-    <div class="drag-space"></div>
-    <div class="window-controls" aria-label="Window controls">
-      <button id="minimize" aria-label="Minimize window" title="Minimize" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10"/></svg></button>
-      <button id="maximize" aria-label="Maximize or restore window" title="Maximize or restore" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9"/></svg></button>
-      <button id="close-window" aria-label="Close window" title="Close" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8 M12 4l-8 8"/></svg></button>
-    </div>
-  </header>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="sidebar-label">WORKSPACE</div>
-      <nav aria-label="Main navigation">
-        <button class="nav-item selected" data-view="play" aria-current="page"><svg aria-hidden="true"><use href="#i-play"/></svg><span>Play</span></button>
-        <button class="nav-item" data-view="servers"><svg aria-hidden="true"><use href="#i-server"/></svg><span>Servers</span><span id="server-count" class="nav-count" hidden>0</span></button>
-        <button class="nav-item" data-view="settings"><svg aria-hidden="true"><use href="#i-settings"/></svg><span>Settings</span></button>
-      </nav>
-      <div class="sidebar-bottom"><span class="preview-dot"></span><strong>Early preview</strong><p>A foundation for your worlds.</p></div>
-    </aside>
-    <main id="main-content">
-      <div id="browser-banner" class="browser-banner" hidden><svg aria-hidden="true"><use href="#i-info"/></svg><span><strong>Browser preview — no files written</strong><br>Profiles and settings stay in this tab. Folder actions are unavailable.</span></div>
-      <div id="connection-panel" class="connection-panel" role="status"><span id="connection-message">Connecting to the desktop app…</span><div class="inline-actions"><button id="retry" class="button small" hidden>Retry connection</button><button id="enter-preview" class="button small" hidden>Try browser preview</button></div></div>
-      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
-      <div id="global-error" class="notice error" role="alert" hidden></div>
-      <section id="view-play" class="view" aria-labelledby="play-title">
-        <div class="page-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h1 id="play-title" tabindex="-1">Let's build something.</h1><p>A quieter home for Minecraft Java Edition.</p></div><span class="badge">EARLY PREVIEW</span></div>
-        <div class="play-hero">
-          <div class="hero-copy"><span class="eyebrow blue">MINECRAFT · JAVA EDITION</span><h2>Your next world.<br>Closer to home.</h2><p>The launcher starts here. Set up local server profiles today; sign-in and playing come next.</p><div class="hero-action"><button id="play-button" class="button primary play-button" disabled aria-describedby="play-reason"><svg aria-hidden="true"><use href="#i-play"/></svg>Play Minecraft</button><span id="play-reason">Not available in this preview.</span></div></div>
-          <div class="terrain" aria-hidden="true">
-            <svg viewBox="0 0 520 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-              <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#192a44"/><stop offset="1" stop-color="#15202e"/></linearGradient><linearGradient id="land" x2="0" y2="1"><stop stop-color="#273c45"/><stop offset="1" stop-color="#18232e"/></linearGradient></defs>
-              <rect width="520" height="400" fill="url(#sky)"/>
-              <g fill="#b6c7e6" opacity=".5"><rect x="56" y="65" width="2" height="2"/><rect x="275" y="34" width="2" height="2"/><rect x="438" y="92" width="2" height="2"/><rect x="155" y="27" width="2" height="2"/><rect x="306" y="108" width="2" height="2"/></g>
-              <rect x="363" y="48" width="48" height="48" fill="#7f9cb9" opacity=".12"/><rect x="371" y="56" width="32" height="32" fill="#c8d7e6"/><path d="M0 202h36v-30h40v-26h38v34h34v-14h30v30h42v-59h36v-30h36v36h34v43h47v-25h38v-23h40v32h34v32h35v198H0Z" fill="#223448"/>
-              <path d="M0 240h48v-28h53v18h46v-23h38v-40h42v-25h36v28h36v51h48v-28h44v27h55v25h74v155H0Z" fill="#2b424e"/>
-              <path d="m40 260 146-74 192 98-146 76Z" fill="#45675f"/><path d="m40 260 192 100v62L40 322Z" fill="#293a3d"/><path d="m232 360 146-76v62l-146 76Z" fill="#1e2e36"/>
-              <path d="m83 239 103-53 145 74-103 54Z" fill="#52766a"/><path d="m83 239 145 75v22L83 261Z" fill="#344d46"/><path d="m228 314 103-54v22l-103 54Z" fill="#29413e"/>
-              <path d="m164 263 30-16 70 36-30 16Z" fill="#699fbd"/><path d="m234 299 30-16v70l-30 16Z" fill="#416c8d"/><path d="m234 326 30-16 M234 344l30-16" stroke="#7397b1" stroke-width="2" opacity=".45"/>
-              <g><path d="m136 215 10-5 10 5-10 5Z" fill="#6f7560"/><path d="m136 215 10 5v28l-10-5Z" fill="#4b4a3f"/><path d="m146 220 10-5v28l-10 5Z" fill="#373e38"/><path d="m107 184 39-20 40 20-40 21Z" fill="#4c7362"/><path d="m107 184 39 21v30l-39-20Z" fill="#365648"/><path d="m146 205 40-21v30l-40 21Z" fill="#294c43"/><path d="m119 161 27-14 28 14-28 15Z" fill="#60836b"/><path d="m119 161 27 15v27l-27-14Z" fill="#41634e"/><path d="m146 176 28-15v27l-28 15Z" fill="#345a49"/></g>
-              <path d="m308 324 85-43 127 65v54H308Z" fill="url(#land)"/><path d="m342 307 51-26 127 65-52 26Z" fill="#334b49"/>
-              <path d="M0 320 74 358v42H0Z" fill="#17232b"/><g fill="#7d9680" opacity=".65"><path d="m279 247 7-4 8 4-8 4Z"/><path d="m179 212 7-4 8 4-8 4Z"/><path d="m102 263 7-4 8 4-8 4Z"/></g>
-            </svg>
-            <span class="terrain-caption">A LITTLE SPACE. A LOT OF POSSIBILITY.</span>
-          </div>
-        </div>
-        <div class="section-heading"><h2>The path to play</h2><span>Not available yet</span></div>
-        <div class="milestones">
-          <article class="milestone"><span class="step">01</span><h3>Microsoft sign-in</h3><p>Connect your account securely.</p><span class="muted-label">COMING NEXT</span></article>
-          <article class="milestone"><span class="step">02</span><h3>Game installation</h3><p>Download and manage game files.</p><span class="muted-label">COMING NEXT</span></article>
-          <article class="milestone"><span class="step">03</span><h3>Launch & play</h3><p>Head into your next world.</p><span class="muted-label">COMING NEXT</span></article>
-        </div>
-        <button class="server-shortcut" data-go="servers"><span class="shortcut-icon"><svg aria-hidden="true"><use href="#i-server"/></svg></span><span><strong>Start with a server profile</strong><span>Configure a name, port and memory. Keep it local.</span></span><svg class="shortcut-arrow" aria-hidden="true"><use href="#i-arrow"/></svg></button>
-      </section>
-      <section id="view-servers" class="view" aria-labelledby="servers-title" hidden>
-        <div class="page-heading"><div><p class="eyebrow">LOCAL WORKSPACE</p><h1 id="servers-title" tabindex="-1">Your servers</h1><p>Small setup. Room for something bigger.</p></div><button id="add-server" class="button primary" disabled><svg aria-hidden="true"><use href="#i-plus"/></svg>Add server</button></div>
-        <div class="info-strip"><svg aria-hidden="true"><use href="#i-info"/></svg><p>Profiles create local setup files only. Server downloads and launching are not available yet.</p></div>
-        <div id="servers-loading" class="empty-state"><span class="empty-icon"><svg aria-hidden="true"><use href="#i-server"/></svg></span><h2>Waiting for your workspace</h2><p>Connect to the desktop app to load server profiles.</p></div>
-        <div id="servers-empty" class="empty-state" hidden><span class="empty-icon"><svg aria-hidden="true"><use href="#i-server"/></svg></span><h2>A fresh start for your server.</h2><p>Create your first local profile. Choose a name, set your resources, and we'll keep the setup in one place.</p><button id="empty-add-server" class="button primary" disabled><svg aria-hidden="true"><use href="#i-plus"/></svg>Add your first server</button><span class="empty-footnote">Configuration only · Nothing runs in the background</span></div>
-        <div id="server-list" class="server-list" aria-label="Configured server profiles"></div>
-      </section>
-      <section id="view-settings" class="view" aria-labelledby="settings-title" hidden>
-        <div class="page-heading"><div><p class="eyebrow">MAKE IT YOURS</p><h1 id="settings-title" tabindex="-1">Settings</h1><p>A few essentials. Saved on this device.</p></div></div>
-        <form id="settings-form" class="settings-panel" novalidate>
-          <div class="panel-heading"><svg aria-hidden="true"><use href="#i-settings"/></svg><div><h2>Java & resources</h2><p>Preferences for future game launches. No game is installed.</p></div></div>
-          <div class="field"><label for="java-path">Java executable <span class="optional">Optional</span></label><div class="input-action"><input id="java-path" name="java_path" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. C:\Program Files\Java\bin\java.exe" aria-describedby="java-help" disabled><button id="browse-java" type="button" class="button" disabled>Browse…</button></div><p id="java-help" class="field-help">Leave blank to use automatic Java discovery when launching is supported.</p></div>
-          <div class="field memory-field"><label for="client-memory">Client memory <span class="input-unit">MiB</span></label><input id="client-memory" name="client_memory_mb" type="number" min="512" max="32768" step="1" value="4096" inputmode="numeric" autocomplete="off" aria-describedby="memory-help client-memory-error" disabled><p id="memory-help" class="field-help">512–32,768 MiB. 4,096 MiB is a good starting point.</p><p id="client-memory-error" class="field-error" hidden></p></div>
-          <div class="form-footer"><span id="settings-hint">Local preferences, not an installation.</span><button id="save-settings" type="submit" class="button primary" disabled>Save settings</button></div>
-        </form>
-        <section class="settings-panel data-panel" aria-labelledby="data-title"><div><h2 id="data-title">Launcher data</h2><p>Settings and server profiles live here.</p><code id="data-path">Waiting for desktop connection…</code></div><button id="open-data" class="button" disabled><svg aria-hidden="true"><use href="#i-folder"/></svg>Open data folder</button></section>
-      </section>
-      <footer class="workspace-footer"><span>NEOLAUNCHER <span class="footer-divider">/</span> JAVA EDITION</span><span id="workspace-mode">Desktop connection pending</span></footer>
-    </main>
-  </div>
-  <dialog id="server-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description">
-    <form id="server-form" novalidate>
-      <div class="dialog-heading"><span class="dialog-icon"><svg aria-hidden="true"><use href="#i-server"/></svg></span><div><p class="eyebrow">LOCAL CONFIGURATION</p><h2 id="dialog-title">Add a server</h2></div><button id="dialog-close" type="button" class="icon-button" aria-label="Close dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12 M18 6 6 18"/></svg></button></div>
-      <p id="dialog-description" class="dialog-description">Create a profile and setup files. This won't download or start a server.</p>
-      <div id="dialog-error" class="notice error" role="alert" hidden></div>
-      <div class="field"><label for="server-name">Server name</label><input id="server-name" name="name" type="text" required maxlength="60" autocomplete="off" placeholder="e.g. Weekend world" aria-describedby="server-name-error"><p id="server-name-error" class="field-error" hidden></p></div>
-      <div class="field"><label for="server-version">Minecraft version <span class="optional">Optional</span></label><input id="server-version" name="version" type="text" maxlength="48" pattern="[A-Za-z0-9._+\-]+" autocomplete="off" spellcheck="false" placeholder="e.g. 1.21.4" aria-describedby="version-help server-version-error"><p id="version-help" class="field-help">A version label only; no files will be downloaded.</p><p id="server-version-error" class="field-error" hidden></p></div>
-      <div class="field-row"><div class="field"><label for="server-port">Port</label><input id="server-port" name="port" type="number" min="1024" max="65535" step="1" required value="25565" inputmode="numeric" autocomplete="off" aria-describedby="port-help server-port-error"><p id="port-help" class="field-help">1,024–65,535</p><p id="server-port-error" class="field-error" hidden></p></div><div class="field"><label for="server-memory">Memory <span class="input-unit">MiB</span></label><input id="server-memory" name="memory_mb" type="number" min="512" max="32768" step="1" required value="2048" inputmode="numeric" autocomplete="off" aria-describedby="server-memory-help server-memory-error"><p id="server-memory-help" class="field-help">512–32,768 MiB</p><p id="server-memory-error" class="field-error" hidden></p></div></div>
-      <div class="dialog-footer"><span id="create-hint">Saved to your launcher data folder.</span><div class="inline-actions"><button id="cancel-server" type="button" class="button">Cancel</button><button id="create-server" type="submit" class="button primary">Create profile</button></div></div>
-    </form>
-  </dialog>
-</body>
-</html>
+  <header class="titlebar"><div class="brand"><svg aria-hidden="true"><use href="#i-brand"/></svg><strong>NeoLauncher</strong><span>JAVA EDITION</span></div><div class="drag-space"></div><div class="window-controls" aria-label="Window controls"><button id="minimize" aria-label="Minimize window" disabled>−</button><button id="maximize" aria-label="Maximize or restore window" disabled>□</button><button id="close-window" aria-label="Close window" disabled>×</button></div></header>
+  <div class="app-shell"><aside class="sidebar"><div class="sidebar-label">WORKSPACE</div><nav aria-label="Main navigation">
+    <button class="nav-item selected" data-view="play" aria-label="Play" aria-current="page"><svg aria-hidden="true"><use href="#i-play"/></svg><span>Play</span></button>
+    <button class="nav-item" data-view="servers" aria-label="Servers"><svg aria-hidden="true"><use href="#i-server"/></svg><span>Servers</span></button>
+    <button class="nav-item" data-view="content" aria-label="Mods & packs"><svg aria-hidden="true"><use href="#i-content"/></svg><span>Mods & packs</span></button>
+    <button class="nav-item" data-view="settings" aria-label="Settings"><svg aria-hidden="true"><use href="#i-settings"/></svg><span>Settings</span></button>
+  </nav><div class="sidebar-bottom"><span class="preview-dot"></span><strong>Your little universe.</strong><p>Vanilla & Fabric.<br>One world at a time.</p></div></aside>
+  <main id="main-content">
+    <div id="browser-banner" class="browser-banner" hidden><span><strong>Browser preview — no files written</strong><br>Read-only UI preview. Sign-in, downloads, profile creation and launching require the desktop app. No demo accounts or running processes.</span></div>
+    <div id="connection-panel" class="connection-panel" role="status"><span id="connection-message">Connecting to the desktop app…</span><div class="inline-actions"><button id="retry" class="button small" hidden>Retry connection</button><button id="enter-preview" class="button small" hidden>Open browser preview</button></div></div>
+    <div id="notice" class="notice" role="status" hidden></div><div id="global-error" class="notice error" role="alert" hidden></div>
+    <section id="view-play" class="view" aria-labelledby="play-title">
+      <div class="page-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h1 id="play-title" tabindex="-1">A little space. Endless possibility.</h1><p>Your worlds, your way. Minecraft Java Edition.</p></div></div>
+      <div class="play-hero"><div class="hero-copy"><span class="eyebrow blue">MAKE SOMETHING OF NOTHING</span><h2>One island.<br>A whole new world.</h2><p>Sign in with Microsoft, install a profile, and take the first step. Your worlds stay in their own folders.</p><div class="hero-action"><button id="sign-in" class="button primary" data-native disabled>Sign in with Microsoft</button><span>Requires an account that owns Minecraft Java.</span></div></div>
+      <div class="terrain" role="img" aria-label="Skyblock: a tiny floating grass and dirt island with a tree, and a waterfall flowing down into an endless void. No ground below.">
+        <svg viewBox="0 0 520 420" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#1d304a"/><stop offset="1" stop-color="#121b2a"/></linearGradient><linearGradient id="water" x2="0" y2="1"><stop stop-color="#78b9db"/><stop offset="1" stop-color="#35638f"/></linearGradient><pattern id="water-lines" width="30" height="70" patternUnits="userSpaceOnUse"><path d="M5 8v22 M17 38v17 M25 2v10" stroke="#b9e7fa" stroke-width="2" opacity=".36"/></pattern><clipPath id="fall-clip"><path d="m287 254 29-15v210h-29Z"/></clipPath></defs>
+          <rect width="520" height="420" fill="url(#sky)"/>
+          <g fill="#b8cceb" opacity=".55"><rect x="56" y="65" width="2" height="2"/><rect x="275" y="34" width="2" height="2"/><rect x="438" y="152" width="2" height="2"/><rect x="125" y="310" width="2" height="2"/><rect x="402" y="342" width="2" height="2"/></g>
+          <rect x="383" y="48" width="48" height="48" fill="#a0c7e6" opacity=".06"/><rect x="391" y="56" width="32" height="32" fill="#c1d2e4"/>
+          <g id="floating-island">
+            <path d="m131 214 127-65 131 67-128 66Z" fill="#71916c"/><path d="m131 214 130 68v44l-40 20-42-22v-23l-48-24Z" fill="#685445"/><path d="m261 282 128-66v47l-38 19v22l-49 26-41-4Z" fill="#4a403b"/>
+            <path d="m131 214 130 68v12l-130-67Z" fill="#4b7356"/><path d="m261 282 128-66v12l-128 66Z" fill="#3c624e"/>
+            <path d="m150 247 22 11v13l-22-11Z M204 292l20 10v12l-20-10Z M235 317l15 8v11l-15-8Z" fill="#80614b"/><path d="m335 268 20-10v12l-20 10Z M275 304l20-10v14l-20 10Z" fill="#605044"/>
+            <path d="m253 223 29-15 34 17-29 15-13-7-16 8-19-10Z" fill="#83c2da"/><path d="m287 240 29-15v14l-29 15Z" fill="#8ccce5"/>
+            <path d="m194 192 12-6 13 7-13 6Z" fill="#9b7a51"/><path d="m194 192 12 7v39l-12-6Z" fill="#745139"/><path d="m206 199 13-6v39l-13 6Z" fill="#513f32"/>
+            <path d="m157 145 49-25 49 25-49 26Z" fill="#709563"/><path d="m157 145 49 26v38l-49-25Z" fill="#50764f"/><path d="m206 171 49-26v38l-49 26Z" fill="#395f48"/>
+            <path d="m170 119 36-18 37 18-37 19Z" fill="#87a573"/><path d="m170 119 36 19v29l-36-18Z" fill="#608354"/><path d="m206 138 37-19v29l-37 19Z" fill="#456f4d"/>
+            <g fill="#9eb27d"><path d="m162 215 8-4 8 4-8 4Z M325 201l8-4 8 4-8 4Z M244 181l8-4 8 4-8 4Z"/></g>
+          </g>
+          <path d="m287 254 29-15v210h-29Z" fill="url(#water)"/><path d="M287 254v195" stroke="#b5e0ef" stroke-width="3" opacity=".65"/>
+          <g clip-path="url(#fall-clip)"><rect class="water-flow" x="287" y="160" width="30" height="360" fill="url(#water-lines)"/></g>
+        </svg>
+        <span class="terrain-caption">SKYBLOCK / ABOVE THE EVERYDAY</span>
+      </div></div>
+      <div class="section-heading"><h2>Microsoft accounts</h2><span>Secure device sign-in · No passwords here</span></div><div id="account-list" class="account-list"><p>Connect the desktop app to load accounts.</p></div>
+      <div class="section-heading"><h2>Your game profiles</h2><button id="add-instance" class="button small" data-native disabled>+ New profile</button></div><div id="instance-list" class="server-list"><div class="empty-state"><h2>A fresh start.</h2><p>Create a Vanilla or Fabric profile to install Minecraft.</p></div></div>
+    </section>
+    <section id="view-servers" class="view" aria-labelledby="servers-title" hidden><div class="page-heading"><div><p class="eyebrow">ROOM FOR YOUR PEOPLE</p><h1 id="servers-title" tabindex="-1">Your servers</h1><p>Install, host, and keep an eye on things.</p></div><button id="add-server" class="button primary" data-native disabled>+ New server</button></div><div class="info-strip"><p>Vanilla & Fabric only. Install first, then review the Minecraft EULA before starting. Java must be available on this device.</p></div><div id="server-list" class="server-list"><div class="empty-state"><h2>No servers yet.</h2><p>Create a server profile or install a server modpack.</p></div></div></section>
+    <section id="view-content" class="view" aria-labelledby="content-title" hidden><div class="page-heading"><div><p class="eyebrow">A DIFFERENT KIND OF WORLD</p><h1 id="content-title" tabindex="-1">Mods & modpacks</h1><p>Discover on Modrinth. CurseForge is optional.</p></div></div><div class="info-strip"><p><strong>Vanilla & Fabric only.</strong> Forge, NeoForge, Quilt and other pack loaders are unsupported. Packs always create a <strong>new profile</strong>; existing worlds are never overwritten.</p></div>
+      <form id="search-form" class="settings-panel content-search"><div class="field-row"><div class="field"><label for="provider">Provider</label><select id="provider"><option value="modrinth">Modrinth</option><option id="cf-option" value="curseforge" disabled>CurseForge · configure in Settings</option></select></div><div class="field"><label for="content-kind">Content</label><select id="content-kind"><option value="mod">Mods</option><option value="modpack">Modpacks</option></select></div></div><div class="filter-row"><div class="field"><label for="content-version">Minecraft version</label><input id="content-version" placeholder="Any version" maxlength="48"></div><div class="field"><label for="content-loader">Loader</label><select id="content-loader"><option value="fabric">Fabric</option><option value="vanilla">Vanilla</option></select></div><div class="field"><label for="content-side">Target</label><select id="content-side"><option value="client">Client</option><option value="server">Server</option></select></div></div><div class="input-action"><input id="search-query" aria-label="Search mods and modpacks" placeholder="Search for something new…" maxlength="120"><button id="search-content" class="button primary" data-native disabled>Search</button></div><p id="provider-hint" class="field-help">All provider requests run in the desktop app. No API keys are sent by this page.</p></form>
+      <div id="search-status" role="status" class="section-heading">Search to discover compatible content.</div><div id="content-results" class="server-list"></div>
+    </section>
+    <section id="view-settings" class="view" aria-labelledby="settings-title" hidden><div class="page-heading"><div><p class="eyebrow">MAKE IT YOURS</p><h1 id="settings-title" tabindex="-1">Settings</h1><p>A few essentials. Saved on this device.</p></div></div>
+      <form id="settings-form" class="settings-panel"><div class="panel-heading"><div><h2>Java & resources</h2><p>Use an existing Java installation. NeoLauncher does not automatically install Java.</p></div></div><div class="field"><label for="java-path">Java executable</label><div class="input-action"><input id="java-path" autocomplete="off" spellcheck="false" placeholder="Leave blank for local Java discovery" data-native disabled><button id="browse-java" type="button" class="button" data-native disabled>Browse…</button></div><p class="field-help">Choose java.exe (Windows) from a compatible Java installation if discovery fails.</p></div><div class="field memory-field"><label for="client-memory">Client memory · MiB</label><input id="client-memory" type="number" min="512" max="32768" step="1" value="4096" required data-native disabled><p class="field-help">512–32,768 MiB. Start with 4,096 MiB.</p></div><label class="check"><input id="cf-enabled" type="checkbox" disabled>Enable CurseForge requests</label><p class="field-help">Requires a configured key below. Off means no CurseForge requests.</p><div class="form-footer"><span>Changes apply to your next launch.</span><button id="save-settings" class="button primary" data-native disabled>Save settings</button></div></form>
+      <form id="key-form" class="settings-panel"><h2>Optional · CurseForge</h2><p id="key-status" class="field-help">No API key configured. Modrinth needs no key.</p><div class="field"><label for="cf-key">API key</label><input id="cf-key" type="password" autocomplete="new-password" spellcheck="false" data-native disabled><p class="field-help">Stored by the native app. Never read back into this page.</p></div><div class="inline-actions"><button id="save-key" class="button" data-native disabled>Save key</button><button id="remove-key" type="button" class="button" disabled>Remove key</button></div></form>
+      <section class="settings-panel data-panel"><div><h2>Launcher data</h2><p>Accounts, profiles and settings are managed on this device.</p><code id="data-path">Waiting for desktop connection…</code></div><button id="open-data" class="button" data-native disabled>Open data folder</button></section>
+    </section>
+    <section id="operations-panel" class="operations-panel" aria-labelledby="operations-title" hidden><div class="section-heading"><h2 id="operations-title">Activity</h2><span>Live native progress · No estimated percentages</span></div><div id="operation-list"></div></section>
+    <footer class="workspace-footer"><span>NEOLAUNCHER / JAVA EDITION</span><span id="workspace-mode">Desktop connection pending</span><button id="refresh-state" class="button small" data-native disabled>Refresh status</button></footer>
+  </main></div>
+  <dialog id="action-dialog" aria-labelledby="dialog-title"><div class="dialog-heading"><h2 id="dialog-title"></h2><button id="dialog-close" type="button" class="icon-button" aria-label="Close dialog">×</button></div><div id="dialog-error" class="notice error" role="alert" hidden></div><div id="dialog-body"></div></dialog>
+</body></html>

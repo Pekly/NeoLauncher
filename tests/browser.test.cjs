@@ -46,8 +46,8 @@ test('Chromium: preview, responsive layout, keyboard, reduced motion and native 
       socket.send(JSON.stringify({ id, method, params }));
     });
   }
-  async function evaluate(expression) {
-    const response = await cdp('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+  async function evaluate(expression, userGesture = false) {
+    const response = await cdp('Runtime.evaluate', { expression, userGesture, returnByValue: true, awaitPromise: true });
     if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text);
     return response.result.value;
   }
@@ -56,11 +56,13 @@ test('Chromium: preview, responsive layout, keyboard, reduced motion and native 
     assert.fail(`Timed out: ${expression}`);
   }
   const el = id => `document.getElementById(${JSON.stringify(id)})`;
-  const click = id => evaluate(`${el(id)}.click()`);
-  const input = (id, value) => evaluate(`${el(id)}.value=${JSON.stringify(value)}; ${el(id)}.dispatchEvent(new Event('input',{bubbles:true}))`);
+  // Dialog close watchers require activation when opening to make Escape cancelable.
+  const click = id => evaluate(`${el(id)}.focus(); ${el(id)}.click()`, true);
+  const input = (id, value) => evaluate(`${el(id)}.value=${JSON.stringify(value)}; ${el(id)}.dispatchEvent(new Event('input',{bubbles:true})); ${el(id)}.dispatchEvent(new Event('change',{bubbles:true}))`);
+  const submit = () => evaluate(`document.querySelector('[data-submit]').click()`, true);
   async function key(key, code = key, modifiers = 0) {
     const vk = { Tab: 9, Escape: 27, Enter: 13 }[key];
-    await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: vk, modifiers });
+    await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: vk, modifiers, ...(key === 'Enter' ? { text: '\r' } : {}) });
     await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk, modifiers });
   }
   const navigateView = name => evaluate(`document.querySelector('[data-view="${name}"]').click()`);
@@ -80,82 +82,51 @@ test('Chromium: preview, responsive layout, keyboard, reduced motion and native 
   await until(`${el('enter-preview')} && !${el('enter-preview')}.hidden`);
   assert.equal(await evaluate(`${el('browser-banner')}.hidden`), true, 'browser adapter never starts automatically');
   await click('enter-preview');
-  await until(`!${el('browser-banner')}.hidden && !${el('add-server')}.disabled`);
-  assert.equal(await evaluate(`${el('play-button')}.disabled`), true);
-  assert.equal(await evaluate(`${el('open-data')}.disabled`), true);
+  await until(`!${el('browser-banner')}.hidden`);
+  for (const id of ['sign-in', 'add-instance', 'add-server', 'save-settings', 'open-data', 'search-content']) {
+    assert.equal(await evaluate(`${el(id)}.disabled`), true, `${id} requires native bindings`);
+  }
+  await click('add-server');
+  assert.equal(await evaluate(`${el('action-dialog')}.open`), false, 'read-only preview cannot create profiles');
 
-  await t.test('responsive Play/Servers/Settings grids at 1280, 900, 680, 390 and 320px', async () => {
+  await t.test('responsive Play/Servers/Content/Settings grids at 1280, 900, 680, 390 and 320px', async () => {
     for (const value of [1280, 900, 680, 390, 320]) {
       await width(value);
-      for (const view of ['play', 'servers', 'settings']) {
+      for (const view of ['play', 'servers', 'content', 'settings']) {
         await navigateView(view);
         await assertNoOverflow(`${view} ${value}px`);
       }
     }
   });
   await width(900);
-  await navigateView('servers');
-  await click('empty-add-server');
-  await until(`${el('server-dialog')}.open`);
-  assert.equal(await evaluate('document.activeElement.id'), 'server-name');
-  await key('Tab');
-  assert.equal(await evaluate('document.activeElement.id'), 'server-version');
-  assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'), 'solid');
-  await key('Tab', 'Tab', 8);
-  assert.equal(await evaluate('document.activeElement.id'), 'server-name');
-  await evaluate(`${el('create-server')}.focus()`);
-  await key('Tab');
-  assert.equal(await evaluate(`${el('server-dialog')}.contains(document.activeElement)`), true, 'native dialog traps Tab focus');
-  await key('Escape');
-  await until(`!${el('server-dialog')}.open && document.activeElement.id === 'empty-add-server'`);
-  await click('empty-add-server');
-  await click('create-server');
-  assert.equal(await evaluate(`${el('server-name')}.getAttribute('aria-invalid')`), 'true');
-  assert.equal(await evaluate('document.activeElement.id'), 'server-name');
-  const hostileName = '<img src=x onerror=alert(1)>';
-  await input('server-name', hostileName);
-  await click('create-server');
-  await until(`!${el('server-dialog')}.open`);
-  assert.equal(await evaluate("document.querySelector('.server-card h2').textContent"), hostileName);
-  assert.equal(await evaluate("document.querySelectorAll('.server-card img').length"), 0);
-  assert.match(await evaluate(`${el('notice')}.textContent`), /No files written/);
-  assert.equal(await evaluate("document.querySelector('.open-server-folder').disabled"), true);
-  await click('add-server');
-  await input('server-name', 'Second profile');
-  await input('server-port', '25565');
-  await click('create-server');
-  await until(`!${el('dialog-error')}.hidden`);
-  assert.equal(await evaluate(`${el('create-server')}.disabled`), false, 'failed create cleans up busy state');
-  await key('Escape');
-  await navigateView('settings');
-  await input('client-memory', '511');
-  await click('save-settings');
-  assert.equal(await evaluate(`${el('client-memory')}.getAttribute('aria-invalid')`), 'true');
-  await input('client-memory', '8192');
-  await click('save-settings');
-  await until(`${el('notice')}.textContent.includes('Preview settings updated')`);
+  await evaluate(`document.querySelector('[data-view="servers"]').focus()`);
+  await key('Enter');
+  assert.equal(await evaluate('document.activeElement.id'), 'servers-title');
+  assert.equal(await evaluate(`document.querySelector('[data-view="servers"]').getAttribute('aria-current')`), 'page');
   await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   await navigateView('play');
   assert.equal(await evaluate(`getComputedStyle(${el('view-play')}).animationName`), 'none');
-  assert.equal(await evaluate(`getComputedStyle(${el('play-button')}).transitionDuration`), '0s');
+  assert.equal(await evaluate(`getComputedStyle(${el('sign-in')}).transitionDuration`), '0s');
 
   await t.test('delayed Wails binding, retry, native errors/success, Java and folder cleanup', async () => {
     // These are explicitly test-only native fixtures, not application/demo data.
     await cdp('Page.addScriptToEvaluateOnNewDocument', { source: `
       window.__calls = [];
       window.runtime = Object.fromEntries(['WindowMinimise','WindowToggleMaximise','Quit'].map(name => [name, async () => { window.__calls.push(name); }]));
-      window.__state = {schema_version:1,data_dir:'C:/Data/'+'long-path-'.repeat(40),settings:{java_path:'',client_memory_mb:4096},servers:[],next_server_port:25565};
+      window.__state = {schema_version:1,data_dir:'C:/Data/'+'long-path-'.repeat(40),settings:{java_path:'',client_memory_mb:4096,curseforge_enabled:false},instances:[],servers:[],accounts:[],operations:[],processes:[],next_server_port:25565};
       window.__fail = 'GetState';
       const call = async (name, payload) => {
         window.__calls.push(name);
-        await new Promise(resolve => setTimeout(resolve, 160));
+        if (name === 'CreateServer' && window.__holdCreate) await new Promise(resolve => { window.__releaseCreate = resolve; });
+        await new Promise(resolve => setTimeout(resolve, name === 'CreateServer' ? 400 : 160));
         if (window.__fail === name) { window.__fail = ''; throw new Error('Test failure: '+name); }
+        if (name === 'GetMinecraftVersions') return [{id:'1.21.4',type:'release'}, {id:'3D Shareware v1.34',type:'snapshot'}, {id:'v'.repeat(64),type:'release'}];
         if (name === 'SaveSettings') window.__state.settings = payload;
         if (name === 'ChooseJava') window.__state.settings.java_path = 'C:/Java/bin/java.exe';
-        if (name === 'CreateServer') window.__state.servers.push({...payload,id:'native-test',directory:'C:/Data/test',created_at:''});
+        if (name === 'CreateServer') window.__state.servers.push({...payload,id:'native-test-'+window.__state.servers.length,directory:'C:/Data/test',installed:false});
         return JSON.parse(JSON.stringify(window.__state));
       };
-      setTimeout(() => { window.go = {app:{App:Object.fromEntries(['GetState','SaveSettings','CreateServer','ChooseJava','OpenDataFolder','OpenServerFolder'].map(name => [name,payload => call(name,payload)]))}}; }, 1500);
+      setTimeout(() => { window.go = {app:{App:Object.fromEntries(['GetState','GetMinecraftVersions','SaveSettings','CreateServer','ChooseJava','OpenDataFolder','OpenServerFolder'].map(name => [name,payload => call(name,payload)]))}}; }, 1500);
     ` });
     await cdp('Page.navigate', { url });
     await until(`${el('enter-preview')} && !!window.runtime`);
@@ -168,6 +139,10 @@ test('Chromium: preview, responsive layout, keyboard, reduced motion and native 
     await until(`!${el('add-server')}.disabled`);
     assert.equal(await evaluate(`${el('browser-banner')}.hidden`), true);
     await navigateView('settings');
+    await input('client-memory', '511');
+    await click('save-settings');
+    assert.equal(await evaluate(`${el('client-memory')}.validity.rangeUnderflow`), true);
+    assert.equal(await evaluate(`__calls.filter(c=>c==='SaveSettings').length`), 0, 'invalid resources never reach native');
     await input('java-path', 'C:/Unsaved/java.exe');
     await input('client-memory', '6144');
     await evaluate("window.__fail='SaveSettings'");
@@ -181,7 +156,7 @@ test('Chromium: preview, responsive layout, keyboard, reduced motion and native 
     await until(`${el('notice')}.textContent === 'Settings saved on this device.'`);
     await input('client-memory', '8192');
     await click('browse-java');
-    await until(`${el('java-path')}.value === 'C:/Java/bin/java.exe'`);
+    await until(`${el('java-path')}.value === 'C:/Java/bin/java.exe' && !${el('open-data')}.disabled`);
     assert.equal(await evaluate(`${el('client-memory')}.value`), '8192', 'Java browse preserves unsaved memory');
     await evaluate("window.__fail='OpenDataFolder'");
     await click('open-data');
@@ -192,15 +167,59 @@ test('Chromium: preview, responsive layout, keyboard, reduced motion and native 
     await until(`${el('notice')}.textContent.includes('request sent')`);
     await navigateView('servers');
     await click('add-server');
-    await input('server-name', 'N'.repeat(60));
-    await input('server-version', 'v'.repeat(48));
-    await click('create-server');
+    await until(`${el('profile-version')}.options.length === 4`);
+    assert.equal(await evaluate('document.activeElement.id'), 'profile-name');
+    await key('Tab');
+    assert.equal(await evaluate('document.activeElement.id'), 'profile-version');
+    assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'), 'solid');
+    await key('Tab', 'Tab', 8);
+    assert.equal(await evaluate('document.activeElement.id'), 'profile-name');
+    await input('profile-version', '1.21.4');
+    await evaluate(`document.querySelector('[data-submit]').focus()`);
+    await key('Tab');
+    assert.equal(await evaluate('document.activeElement.id'), 'dialog-close', 'dialog wraps forward Tab');
+    await key('Tab', 'Tab', 8);
+    assert.equal(await evaluate(`document.activeElement.matches('[data-submit]')`), true, 'dialog wraps reverse Tab');
     await key('Escape');
-    assert.equal(await evaluate(`${el('server-dialog')}.open`), true, 'cannot dismiss a pending file-creation request');
-    await until(`!${el('server-dialog')}.open`);
-    assert.equal(await evaluate("document.querySelector('.configured').textContent"), 'Configured');
-    await evaluate("document.querySelector('.open-server-folder').click()");
+    await until(`!${el('action-dialog')}.open && document.activeElement.id === 'add-server'`);
+    await evaluate("window.__fail='GetMinecraftVersions'");
+    await click('add-server');
+    await until(`!${el('retry-versions')}.hidden`);
+    assert.match(await evaluate(`${el('dialog-error')}.textContent`), /GetMinecraftVersions/);
+    assert.equal(await evaluate(`document.querySelector('[data-submit]').disabled`), true);
+    await click('retry-versions');
+    await until(`${el('profile-version')}.options.length === 4`);
+    await input('profile-version', '3D Shareware v1.34');
+    await submit();
+    assert.equal(await evaluate(`${el('profile-name')}.validity.valueMissing`), true);
+    assert.equal(await evaluate('document.activeElement.id'), 'profile-name');
+    const hostileName = '<img src=x onerror=alert(1)>';
+    await input('profile-name', hostileName);
+    await evaluate("window.__fail='CreateServer'");
+    await submit();
+    await until(`${el('dialog-error')}.textContent.includes('CreateServer')`);
+    assert.equal(await evaluate(`document.querySelector('[data-submit]').disabled`), false, 'failed create cleans up busy state');
+    await evaluate('window.__holdCreate = true');
+    await submit();
+    await until(`typeof window.__releaseCreate === 'function' && ${el('action-dialog')}.getAttribute('aria-busy') === 'true'`);
+    await key('Escape');
+    assert.equal(await evaluate(`${el('action-dialog')}.open`), true, 'cannot dismiss a pending file-creation request');
+    await evaluate('window.__holdCreate = false; window.__releaseCreate()');
+    await until(`!${el('action-dialog')}.open`);
+    assert.equal(await evaluate("document.querySelector('.server-card h2').textContent"), hostileName);
+    assert.equal(await evaluate("document.querySelectorAll('.server-card img').length"), 0);
+    assert.equal(await evaluate("document.querySelector('.server-card .status').textContent"), 'Not installed');
+    assert.equal(await evaluate(`__state.servers[0].version`), '3D Shareware v1.34');
+    await evaluate(`document.querySelector('[data-action="folder"][data-kind="server"]').click()`);
     await until(`${el('notice')}.textContent.includes('request sent')`);
+    await click('add-server');
+    await until(`${el('profile-version')}.options.length === 4`);
+    await input('profile-name', 'N'.repeat(60));
+    await input('profile-version', 'v'.repeat(64));
+    await input('profile-port', '25566');
+    await submit();
+    await until(`!${el('action-dialog')}.open`);
+    assert.equal(await evaluate(`__state.servers[1].version.length`), 64);
     for (const value of [1280, 680, 390, 320]) {
       await width(value);
       await assertNoOverflow(`long server name ${value}px`);

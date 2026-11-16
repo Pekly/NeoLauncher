@@ -1,5 +1,6 @@
 /* NeoPanel contract: slate surfaces, blue actions, Segoe UI, 4/8px rhythm.
-   Motion communicates view/dialog arrival; no decorative looping animation. */
+   Quiet workspace; honest native state. Skyblock water is the sole ambient motion.
+   Preserve stable grids, visible focus and reduced motion; never clip layout defects. */
 :root {
   color-scheme: dark;
   --bg: #10141b; --surface: #181d25; --surface-raised: #1d2430;
@@ -221,3 +222,61 @@ dialog::backdrop { background: #070b13bd; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Live workspace extensions; inherited NeoPanel semantic tokens remain authoritative. */
+select { font: inherit; color: var(--text); background: #111720; border: 1px solid #344054; border-radius: 5px; width: 100%; min-width: 0; min-height: 40px; padding: 8px; }
+select:focus-visible, a:focus-visible, pre:focus-visible { outline: 2px solid #7baaff; outline-offset: 3px; }
+a { color: #a5c6ff; overflow-wrap: anywhere; }
+button, h2, p, label, code { overflow-wrap: anywhere; }
+.button:hover:enabled { transition-duration: 0ms; }
+.terrain { min-height: 380px; }
+.terrain-caption { left: 24px; right: auto; bottom: 20px; max-width: 190px; text-align: left; line-height: 1.8; }
+.water-flow { animation: water-fall 1800ms linear infinite; }
+@keyframes water-fall { to { transform: translateY(70px); } }
+.account-list { display: grid; gap: 8px; }
+.account-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); }
+.account-row > strong { min-width: 0; flex: 1; }
+.account-row.selected { border-color: #426ba2; background: #17263b; }
+.account-row .configured { margin: 0; }
+.server-list { margin-top: 12px; }
+.server-card .inline-actions .button { width: auto; }
+.server-card > p { margin: 12px 0; font-size: 12px; }
+.server-card .status { font-size: 11px; font-weight: 500; color: var(--muted); }
+.server-card .status.running, .success { color: var(--success); }
+.server-card .status.failed { color: var(--error); }
+.server-card .card-name { flex: 1; min-width: 0; }
+.server-card .card-name h2 { font-size: 16px; }
+.server-card dl { gap: 8px 16px; }
+.server-list > .empty-state { grid-column: 1 / -1; margin: 0; padding: 32px 24px; }
+.empty-state h2 { font-size: 18px; }
+.empty-state p { margin-bottom: 0; }
+.check { align-items: flex-start; margin: 16px 0 8px; font-weight: 400; }
+.check input { width: 16px; min-height: 16px; height: 16px; flex: none; margin: 2px 0 0; accent-color: var(--accent); }
+.filter-row { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+.content-search { margin-top: 20px; }
+.content-card { display: flex; flex-direction: column; }
+.content-card .button { margin-top: auto; align-self: flex-start; width: auto; }
+.content-card .eyebrow { margin-bottom: 8px; }
+.operations-panel { max-width: 1160px; margin: 0 auto; }
+.operation { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 8px 0; }
+.operation p { font-size: 12px; }
+.operation progress { width: 100%; height: 5px; accent-color: var(--accent); }
+.operation .error { color: var(--error); }
+dialog { overflow-y: auto; }
+#dialog-body { margin-top: 20px; }
+#dialog-error { margin-top: 16px; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); margin-top: 24px; padding-top: 20px; }
+.device-code { display: block; text-align: center; padding: 24px 12px; margin: 20px 0; background: #111720; border: 1px solid #3c5272; border-radius: 8px; font: 600 28px/1.4 Consolas, monospace; letter-spacing: 4px; user-select: all; }
+.logs { width: 100%; max-height: 340px; min-height: 180px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: #0f141c; border: 1px solid var(--border); padding: 12px; font: 11px/1.7 Consolas, monospace; border-radius: 6px; }
+.log-dialog { width: min(800px,calc(100% - 32px)); }
+.field select + p { margin-top: 8px; }
+@media (max-width: 620px) {
+  .terrain { min-height: 280px; }
+  .field-row, .filter-row { grid-template-columns: minmax(0,1fr); gap: 0; }
+  .section-heading { flex-wrap: wrap; }
+  .operation { grid-template-columns: minmax(0,1fr); }
+  .server-card { padding: 16px; }
+  .server-card-header { flex-wrap: wrap; }
+  .account-row .inline-actions { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .water-flow { animation: none; } }

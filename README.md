@@ -1,54 +1,70 @@
 # NeoLauncher
 
-A Windows-first Minecraft Java launcher with the NeoPanel look and lightweight local server setup.
+A Windows-first Minecraft Java launcher with the NeoPanel look, a skyblock waterfall, and lightweight local servers.
 
-## Current build
+## What works
 
-This is the first development scaffold, not a finished Minecraft launcher.
+- **Play:** separate Vanilla/Fabric instances, verified game files, libraries, assets, and natives.
+- **Servers:** install Vanilla/Fabric, explicitly accept the EULA, start/stop, read logs, and send console commands.
+- **Mods and modpacks:** browse Modrinth or opt-in CurseForge for client and server profiles. Required dependencies are included; optional pack files can be included. Packs create new profiles.
+- **Microsoft accounts:** official device-code sign-in, ownership checks, account selection, and refresh support. Passwords are entered only on Microsoft's site.
+- **Settings:** Java path, memory, and a write-only CurseForge API key. Tokens and keys use Windows DPAPI, not plaintext storage.
 
-- Native Windows window with Play, Servers, and Settings.
-- Saved Java path and memory preferences.
-- Local server profiles with separate folders, `server.properties`, and `eula.txt`.
-- No full NeoPanel administration, roles, billing, or remote-node management.
+This is an unsigned development build. Microsoft registration setup is still required; real account sign-in and authenticated gameplay have **not** been verified. Real CurseForge requests have not been tested with a user key.
 
-**Not implemented yet:** Microsoft sign-in, Minecraft downloads/installation, game launch, and server download/start/stop. The interface labels these honestly; creating a profile does not install or start Minecraft.
+## Quick start
 
-## Build and run
+1. Open `NeoLauncher.exe`. Microsoft Edge WebView2 Runtime is required (normally included with Windows).
+2. Install Java separately. Choose its executable in **Settings**, or use `JAVA_HOME`/`PATH`. NeoLauncher checks the Java major required by the chosen Minecraft version.
+3. For a server, open **Servers**, create a profile, and choose **Install**. Starting it asks you to review and accept the [Minecraft EULA](https://aka.ms/MinecraftEULA).
+4. For a game, add a Microsoft account, create an instance, install it, and choose **Play**. A Minecraft Java entitlement is required.
+5. Open **Mods & packs** to add compatible mods or create a new modpack profile.
 
-Requires Windows and Go 1.26+. From this folder:
+### Microsoft app registration
+
+The current build uses public client ID `af8942e2-c4a6-46b3-9085-5c657293f1d0`. Its owner must enable **Entra → App registrations → NeoLauncher → Authentication → Allow public client flows**, with personal Microsoft accounts supported. No client secret is needed or embedded.
+
+The last registration probe returned `invalid_client` / `AADSTS70002` (public/mobile client flow not enabled). Until corrected, sign-in cannot start. Authentication-chain, refresh, cancellation, and secret-storage tests use fixtures; they do not prove the registration can authenticate a real Minecraft account.
+
+### CurseForge
+
+CurseForge starts disabled. Save your own API key in **Settings**, then enable it. The key is masked, write-only, and sent only to the official CurseForge API. Author-disabled downloads are refused. Modrinth needs no key.
+
+## Safety and limits
+
+- Vanilla and Fabric only. Forge, NeoForge, Quilt, and incompatible packs are rejected.
+- Server packs must support servers. A CurseForge modpack needs its author's separate server pack; client-only packs are not installed as servers.
+- Downloads are bounded and verified against published checksums. Archives reject unsafe paths. Failed jobs report errors and can be retried; existing conflicting files are not overwritten.
+- Pack installs use **new profiles**, preserving existing worlds/configuration. Installing or running profiles cannot be modified through the launcher.
+- No automatic EULA acceptance, elevation, firewall/service changes, or Java installation. Server profiles start with `online-mode=true` and `eula=false`.
+- Games and mods run with your Windows permissions. Job Objects own process trees and enforce memory limits; they are **not a security sandbox**. Install only trusted content.
+- Server shutdown sends `stop` before a bounded force-stop. Closing games requires confirmation and can lose unsaved progress.
+- This is local hosting, not NeoPanel administration or remote-node management. Network access still depends on your own network/firewall setup.
+
+Settings and profiles live in `%LOCALAPPDATA%\NeoLauncher`, separate from NeoPanel and existing Minecraft files. To use isolated data:
+
+```powershell
+.\NeoLauncher.exe -data-dir 'D:\NeoLauncher Test'
+```
+
+## Build and test
+
+Requires Windows and Go 1.26+. Go is needed only to build; no Node bundler or Wails CLI is required.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build-windows.ps1
 .\dist\windows-amd64\NeoLauncher.exe
-```
 
-The EXE needs Microsoft Edge WebView2 Runtime (normally included with Windows). Go is needed only to build. Builds are currently unsigned. Use `-Architecture arm64` for an ARM64 cross-build.
-
-Settings and profiles live in `%LOCALAPPDATA%\NeoLauncher`, separate from NeoPanel and your existing Minecraft files. For a test instance:
-
-```powershell
-.\dist\windows-amd64\NeoLauncher.exe -data-dir 'D:\NeoLauncher Test'
-```
-
-Server profiles leave `eula=false`. You must review and accept the Minecraft EULA before running a server. No firewall changes, elevation, downloads, or game processes happen automatically.
-
-## Development
-
-The UI is plain HTML/CSS/JavaScript embedded in a Go/Wails application. No Node bundler or Wails CLI is required.
-
-```powershell
 go test ./...
 go vet ./...
 node --test tests/*.test.cjs
 ```
 
-Core settings/profile tests also run on Linux. The desktop window currently targets Windows only. Opening `internal/app/frontend/index.html` in a browser provides a clearly labeled layout preview; it does not write server files.
+Browser tests require Chrome or Edge; set `CHROME_BIN` if it is not found automatically. They use fake native bindings. Opening `internal/app/frontend/index.html` directly gives a read-only layout preview, not a working launcher.
 
-Next milestones:
-1. Microsoft account sign-in and secure token storage.
-2. Verified Minecraft version, library, and asset installation.
-3. Authenticated game launch.
-4. Minimal server download, explicit EULA acceptance, and safe start/stop.
+`-Architecture arm64` produces an ARM64 cross-build; ARM64 hardware has not been validated. The native desktop targets Windows; non-Windows account storage fails closed.
+
+Verified during development: package tests, safe paths/checksums, DPAPI storage, process ownership, and a synthetic Java install/start/command/save/stop lifecycle. Opt-in live tests downloaded stopped Vanilla/Fabric 1.21.1 servers and verified a Modrinth Fabric API file; no real Minecraft world or EULA was used in those checks.
 
 Design language follows [NeoPanel](https://github.com/Pekly/NeoPanel). NeoLauncher is a separate project and does not embed the panel backend. Not affiliated with Mojang or Microsoft.
 

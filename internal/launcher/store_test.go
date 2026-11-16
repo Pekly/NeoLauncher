@@ -137,7 +137,7 @@ func TestStoredDirectoryCannotRedirectFolderAction(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir, err := reloaded.ServerDirectory(state.Servers[0].ID)
-	if err != nil || dir != store.directory(state.Servers[0].ID) {
+	if err != nil || dir != store.directory("server", state.Servers[0].ID) {
 		t.Fatal("redirected directory", dir, err)
 	}
 }

@@ -24,7 +24,7 @@ try {
  $hash=(Get-FileHash "$OutputDirectory.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
  [IO.File]::WriteAllText("$OutputDirectory.zip.sha256","$hash  $([IO.Path]::GetFileName($OutputDirectory)).zip`r`n",[Text.Encoding]::ASCII)
  Write-Host "NeoLauncher ready: $exe"
- Write-Host 'Early scaffold: settings and server profiles work; game sign-in, installation, and launch are not implemented yet.'
+ Write-Host 'Development build: Vanilla/Fabric, local servers, mods/packs, and Microsoft account support. See README for Java and app-registration requirements.'
 } finally {
  $env:GOOS=$previous.GOOS;$env:GOARCH=$previous.GOARCH;$env:CGO_ENABLED=$previous.CGO_ENABLED;$env:GOWORK=$previous.GOWORK
  Pop-Location
